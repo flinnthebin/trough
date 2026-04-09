@@ -56,7 +56,7 @@ fn main() -> Result<(), std::io::Error> {
     )?; // 3 * 4 refers to the 3 4 byte chunks WAVE, fmt , DATA
     out.write_all(b"WAVE")?;
     write_chunk(b"fmt ", format, &mut out)?;
-    out.write_all(b"DATA")?;
+    out.write_all(b"data")?;
     out.write_all(&sample_data_len.to_le_bytes())?;
     Ok(())
 }
