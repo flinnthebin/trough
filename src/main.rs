@@ -35,7 +35,22 @@ fn main() -> Result<(), std::io::Error> {
     Ok(())
 }
 
+/// # Safety
+///
+/// Only safe to call on packed types. If called on unpacked types, this
+/// would allow you to read padding bytes, which may be uninitialized memory
+// cast_to_bytes takes a reference to a T, and gives you back a slice of the bytes
+// of that type.
 unsafe fn cast_to_bytes<T>(t: &T) -> &[u8] {
+    // cast t to a raw pointer to a T, then cast that to a raw pointer to a u8.
+    // so now it is a pointer to the same place, of type byte instead of type T
     let ptr = t as *const T as *const u8;
+    // create a slice of type ptr (u8), pass size of T (number of bytes of data)
+    // returned unsafely as a slice
+    // Safety:
+    //
+    // ptr is valid until ptr + sizeof<T> since it _was_ a &T which is valid for sizeof<T>
+    // ptr to ptr+sizeof is valid since we had a &T
+    // ptr to ptr+sizeof contains initialized bytes by the safety requirement of this function
     unsafe { std::slice::from_raw_parts(ptr, std::mem::size_of::<T>()) }
 }
