@@ -31,7 +31,7 @@ struct FormatChunkPcm {
 fn main() -> Result<(), std::io::Error> {
     let mut out = std::fs::File::create("audio.wav")?;
     out.write_all(b"RIFF")?;
-    out.write_all(&0u32.to_le_bytes())?; // riff chunk
+    out.write_all(&0u32.to_le_bytes())?; // format chunk
     out.write_all(b"WAVE")?;
     write_chunk(
         b"fmt ",
@@ -39,14 +39,18 @@ fn main() -> Result<(), std::io::Error> {
             format_tag: WaveFormatCategory::Pcm,
             channels: 1.into(),
             samples_per_sec: 44100.into(),
-            avg_bytes_per_sec: (2 * 44100).into(), // channels * samples_per_sec * bits_per_sample / 8
-            block_align: 2.into(),                 // channels * bits_per_sample / 8
+            avg_bytes_per_sec: (1 * 2 * 44100).into(), // num channels * samples per sec * bits per sample / 8
+            block_align: 64.into(),
             format_specific: FormatChunkPcm {
                 bits_per_sample: 16.into(),
             },
         },
         &mut out,
     )?;
+    // format-specific for PCM:
+    //
+    //      WORD wBitsPerSample
+    out.write_all(&16u16.to_le_bytes())?;
     Ok(())
 }
 
@@ -56,7 +60,7 @@ fn write_chunk<T: IntoBytes + Immutable, W: Write>(
     mut out: W,
 ) -> Result<(), std::io::Error> {
     out.write_all(fourcc)?;
-    out.write_all(&(std::mem::size_of::<T>() as u32).to_le_bytes())?;
+    out.write_all(&(std::mem::size_of::<FormatChunkCommon><FSF>() as u32).to_le_bytes())?;
     t.write_to_io(&mut out)?;
     Ok(())
 }
