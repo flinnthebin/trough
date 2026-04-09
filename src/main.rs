@@ -28,25 +28,36 @@ struct FormatChunkPcm {
     bits_per_sample: U16,
 }
 
+const CHANNELS: u16 = 1;
+const BITS_PER_SAMPLE: u16 = 16;
+const SAMPLES_PER_SECOND: u32 = 44100;
+const AVG_BYTES_PER_SECOND: u32 =
+    CHANNELS as u32 * SAMPLES_PER_SECOND * (BITS_PER_SAMPLE / 8) as u32;
+const BLOCK_ALIGN: u16 = CHANNELS * (BITS_PER_SAMPLE / 8);
+
 fn main() -> Result<(), std::io::Error> {
+    let duration_in_seconds = 10;
+    let sample_data_len = AVG_BYTES_PER_SECOND * duration_in_seconds;
+    let format = FormatChunkCommon {
+        format_tag: WaveFormatCategory::Pcm,
+        channels: CHANNELS.into(),
+        samples_per_sec: SAMPLES_PER_SECOND.into(),
+        avg_bytes_per_sec: AVG_BYTES_PER_SECOND.into(),
+        block_align: BLOCK_ALIGN.into(),
+        format_specific: FormatChunkPcm {
+            bits_per_sample: BITS_PER_SAMPLE.into(),
+        },
+    };
+
     let mut out = std::fs::File::create("audio.wav")?;
     out.write_all(b"RIFF")?;
-    out.write_all(&0u32.to_le_bytes())?; // riff chunk
+    out.write_all(
+        &(sample_data_len + 3 * 4 + std::mem::size_of_val(&format) as u32).to_le_bytes(),
+    )?; // 3 * 4 refers to the 3 4 byte chunks WAVE, fmt , DATA
     out.write_all(b"WAVE")?;
-    write_chunk(
-        b"fmt ",
-        FormatChunkCommon {
-            format_tag: WaveFormatCategory::Pcm,
-            channels: 1.into(),
-            samples_per_sec: 44100.into(),
-            avg_bytes_per_sec: (2 * 44100).into(), // channels * samples_per_sec * bits_per_sample / 8
-            block_align: 2.into(),                 // channels * bits_per_sample / 8
-            format_specific: FormatChunkPcm {
-                bits_per_sample: 16.into(),
-            },
-        },
-        &mut out,
-    )?;
+    write_chunk(b"fmt ", format, &mut out)?;
+    out.write_all(b"DATA")?;
+    out.write_all(&sample_data_len.to_le_bytes())?;
     Ok(())
 }
 
